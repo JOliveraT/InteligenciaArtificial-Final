@@ -23,6 +23,92 @@ def get_model():
     return load_model()
 
 
+FRIENDLY_FEATURE_LABELS = {
+    "CLASE SINIESTRO": "Clase de siniestro",
+    "CANTIDAD DE LESIONADOS": "Cantidad de lesionados",
+    "CANTIDAD DE VEHICULOS DAÑADOS": "Cantidad de vehículos dañados",
+    "DEPARTAMENTO": "Departamento",
+    "PROVINCIA": "Provincia",
+    "DISTRITO": "Distrito",
+    "ZONA": "Zona",
+    "TIPO DE VÍA": "Tipo de vía",
+    "RED VIAL": "Red vial",
+    "COD CARRETERA": "Código de carretera",
+    "CONDICIÓN CLIMÁTICA": "Condición climática",
+    "ZONIFICACIÓN": "Zonificación",
+    "CARACTERÍSTICAS DE VÍA": "Características de vía",
+    "PERFIL LONGITUDINAL VÍA": "Perfil longitudinal de vía",
+    "SUPERFICIE DE CALZADA": "Superficie de calzada",
+    "CAUSA FACTOR PRINCIPAL": "Causa / factor principal",
+    "CAUSA ESPECÍFICA": "Causa específica",
+    "anio_siniestro": "Año del siniestro",
+    "mes_siniestro": "Mes del siniestro",
+    "hora_siniestro_numerica": "Hora del siniestro",
+    "periodo_dia": "Periodo del día",
+}
+
+MONTH_OPTIONS = {
+    1: "1 - Enero",
+    2: "2 - Febrero",
+    3: "3 - Marzo",
+    4: "4 - Abril",
+    5: "5 - Mayo",
+    6: "6 - Junio",
+    7: "7 - Julio",
+    8: "8 - Agosto",
+    9: "9 - Septiembre",
+    10: "10 - Octubre",
+    11: "11 - Noviembre",
+    12: "12 - Diciembre",
+}
+
+
+def friendly_label(feature):
+    """Etiqueta legible para la UI sin modificar el nombre real de la feature."""
+    return FRIENDLY_FEATURE_LABELS.get(feature, feature)
+
+
+def sort_text_options(options):
+    """Ordena textos y mantiene 'No especificado' al final de forma consistente."""
+    text_options = [str(option) for option in options]
+    clean_options = [option for option in text_options if option != "No especificado"]
+    sorted_options = sorted(clean_options)
+    return sorted_options + (["No especificado"] if "No especificado" in text_options else [])
+
+
+def get_integer_options(df, column, fallback_options):
+    """Devuelve valores enteros únicos de una columna numérica con fallback seguro."""
+    if column not in df.columns:
+        return fallback_options
+    values = pd.to_numeric(df[column], errors="coerce").dropna()
+    if values.empty:
+        return fallback_options
+    options = sorted(values.astype(int).unique().tolist())
+    return options or fallback_options
+
+
+def get_default_year(df):
+    """Prefiere 2024 si existe; si no, usa el año más frecuente del dataset."""
+    years = get_integer_options(df, "anio_siniestro", [2021, 2022, 2023, 2024, 2025])
+    if 2024 in years:
+        return 2024
+    if "anio_siniestro" not in df.columns:
+        return years[-1]
+    mode = pd.to_numeric(df["anio_siniestro"], errors="coerce").dropna().astype(int).mode()
+    return int(mode.iloc[0]) if not mode.empty else years[-1]
+
+
+def calculate_period(hour):
+    """Calcula el periodo del día a partir de la hora del siniestro."""
+    if 0 <= hour <= 5:
+        return "Madrugada"
+    if 6 <= hour <= 11:
+        return "Mañana"
+    if 12 <= hour <= 17:
+        return "Tarde"
+    return "Noche"
+
+
 def bar_count(df, column, title, top=15):
     if column not in df.columns:
         st.info(f"La columna {column} no está disponible en el dataset.")
@@ -36,7 +122,7 @@ def get_text_options(df, column, limit=200):
     """Devuelve opciones de texto limpias para un selectbox con fallback seguro."""
     if column not in df.columns:
         return ["No especificado"]
-    options = sorted(df[column].fillna("No especificado").astype(str).unique().tolist())
+    options = sort_text_options(df[column].fillna("No especificado").astype(str).unique().tolist())
     return options[:limit] or ["No especificado"]
 
 
@@ -148,7 +234,7 @@ with tab_pred:
         location_cols = st.columns(3)
         with location_cols[0]:
             department_options = get_text_options(X, "DEPARTAMENTO")
-            user_input["DEPARTAMENTO"] = st.selectbox("DEPARTAMENTO", department_options)
+            user_input["DEPARTAMENTO"] = st.selectbox(friendly_label("DEPARTAMENTO"), department_options)
         with location_cols[1]:
             province_options = get_filtered_text_options(
                 X,
@@ -156,7 +242,7 @@ with tab_pred:
                 {"DEPARTAMENTO": user_input["DEPARTAMENTO"]},
                 fallback_df=X,
             )
-            user_input["PROVINCIA"] = st.selectbox("PROVINCIA", province_options)
+            user_input["PROVINCIA"] = st.selectbox(friendly_label("PROVINCIA"), province_options)
         with location_cols[2]:
             district_options = get_filtered_text_options(
                 X,
@@ -167,7 +253,7 @@ with tab_pred:
                 },
                 fallback_df=X,
             )
-            user_input["DISTRITO"] = st.selectbox("DISTRITO", district_options)
+            user_input["DISTRITO"] = st.selectbox(friendly_label("DISTRITO"), district_options)
 
     with st.form("prediction_form"):
         cols = st.columns(2)
@@ -176,15 +262,55 @@ with tab_pred:
             for feature in prediction_features
             if not (has_location_fields and feature in ["DEPARTAMENTO", "PROVINCIA", "DISTRITO"])
         ]
-        for i, feature in enumerate(form_features):
+        skip_features = {"COD CARRETERA", "periodo_dia"}
+        for i, feature in enumerate([item for item in form_features if item not in skip_features]):
             series = X[feature] if feature in X.columns else pd.Series(dtype=object)
             with cols[i % 2]:
-                if pd.api.types.is_numeric_dtype(series):
+                label = friendly_label(feature)
+                if feature == "CANTIDAD DE LESIONADOS":
+                    user_input[feature] = st.number_input(label, min_value=0, step=1, value=0)
+                elif feature == "CANTIDAD DE VEHICULOS DAÑADOS":
+                    user_input[feature] = st.number_input(label, min_value=0, step=1, value=1)
+                elif feature == "anio_siniestro":
+                    year_options = get_integer_options(X, feature, [2021, 2022, 2023, 2024, 2025])
+                    default_year = get_default_year(X)
+                    default_index = year_options.index(default_year) if default_year in year_options else 0
+                    user_input[feature] = st.selectbox(label, year_options, index=default_index)
+                elif feature == "mes_siniestro":
+                    user_input[feature] = st.selectbox(
+                        label,
+                        list(MONTH_OPTIONS.keys()),
+                        index=0,
+                        format_func=lambda month: MONTH_OPTIONS[month],
+                    )
+                elif feature == "hora_siniestro_numerica":
+                    user_input[feature] = st.slider(label, min_value=0, max_value=23, value=12, step=1)
+                    user_input["periodo_dia"] = calculate_period(user_input[feature])
+                    st.info(f"Periodo del día calculado: {user_input['periodo_dia']}")
+                elif pd.api.types.is_numeric_dtype(series):
                     default = float(series.median()) if not series.dropna().empty else 0.0
-                    user_input[feature] = st.number_input(feature, value=default)
+                    user_input[feature] = st.number_input(label, value=default)
                 else:
                     options = get_text_options(X, feature) if feature in X.columns else ["No especificado"]
-                    user_input[feature] = st.selectbox(feature, options or ["No especificado"])
+                    user_input[feature] = st.selectbox(label, options or ["No especificado"])
+
+        if "COD CARRETERA" in form_features:
+            road_code_options = get_filtered_text_options(
+                X,
+                "COD CARRETERA",
+                {"RED VIAL": user_input.get("RED VIAL")},
+                fallback_df=X,
+            )
+            user_input["COD CARRETERA"] = st.selectbox(
+                friendly_label("COD CARRETERA"),
+                road_code_options or ["No especificado"],
+            )
+
+        if "periodo_dia" in form_features and "periodo_dia" not in user_input:
+            hour = int(user_input.get("hora_siniestro_numerica", 12))
+            user_input["periodo_dia"] = calculate_period(hour)
+            st.info(f"Periodo del día calculado: {user_input['periodo_dia']}")
+
         submitted = st.form_submit_button("Predecir nivel de riesgo")
     if submitted:
         prediction, probabilities = predict_single(user_input, model=model)
