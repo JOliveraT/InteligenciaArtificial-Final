@@ -10,7 +10,7 @@ from src.data_loader import DatasetNotFoundError, load_dataset
 from src.predict import load_metadata, load_model, predict_single
 from src.preprocessing import prepare_model_data
 
-st.set_page_config(page_title="IA Siniestros Fatales Perú", page_icon="🚦", layout="wide")
+st.set_page_config(page_title="IA Siniestros Fatales Perú", layout="wide")
 
 @st.cache_data(show_spinner=False)
 def get_data():
@@ -145,7 +145,7 @@ def get_filtered_text_options(df, column, filters, fallback_df=None, limit=200):
     return get_text_options(filtered, column, limit=limit)
 
 
-st.title("🚦 Clasificación del nivel de riesgo en siniestros de tránsito fatales en el Perú")
+st.title("Clasificación del nivel de riesgo en siniestros de tránsito fatales en el Perú")
 st.caption("Proyecto Final de Inteligencia Artificial · Ingeniería de Software · Universidad La Salle")
 
 st.markdown(
@@ -166,7 +166,7 @@ except Exception as exc:
     st.error(f"No se pudo preparar el dataset: {exc}")
     st.stop()
 
-tab_intro, tab_eda, tab_exp, tab_pred = st.tabs(["📌 Resumen", "📊 EDA", "🧪 Experimentos", "🔮 Predicción"])
+tab_intro, tab_eda, tab_exp, tab_pred = st.tabs(["Resumen", "EDA", "Experimentos", "Predicción"])
 
 with tab_intro:
     c1, c2, c3 = st.columns(3)
