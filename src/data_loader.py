@@ -3,10 +3,12 @@ from pathlib import Path
 import pandas as pd
 from .config import EXCEL_PATH, SHEET_NAME, FATALITIES_COLUMN
 
-EXCEL_HEADER_ROW = 3
+EXCEL_HEADER_ROW = 4
 REQUIRED_COLUMNS = {
     "CÓDIGO SINIESTRO",
     "FECHA SINIESTRO",
+    "HORA SINIESTRO",
+    "CLASE SINIESTRO",
     FATALITIES_COLUMN,
     "DEPARTAMENTO",
     "PROVINCIA",
@@ -31,7 +33,7 @@ def validate_dataset_columns(df: pd.DataFrame) -> None:
     if FATALITIES_COLUMN not in df.columns:
         raise ValueError(
             f"No se encontró la columna '{FATALITIES_COLUMN}' después de cargar el Excel. "
-            "Probablemente el encabezado del Excel cambió o debe revisarse el parámetro "
+            "Los encabezados reales del Excel deben estar en la fila 5; si vuelve a fallar, revise el parámetro "
             f"header={EXCEL_HEADER_ROW}."
         )
 
@@ -40,8 +42,8 @@ def validate_dataset_columns(df: pd.DataFrame) -> None:
         missing = ", ".join(sorted(missing_columns))
         raise ValueError(
             "El Excel se cargó, pero faltan columnas esperadas del ONSV: "
-            f"{missing}. Revise si el encabezado del Excel cambió o si debe ajustarse "
-            f"header={EXCEL_HEADER_ROW}."
+            f"{missing}. Revise si el encabezado del Excel cambió. Los encabezados reales deben estar en la fila 5; "
+            f"si vuelve a fallar, revise header={EXCEL_HEADER_ROW}."
         )
 
 
