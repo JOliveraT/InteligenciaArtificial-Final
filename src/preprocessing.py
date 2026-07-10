@@ -13,6 +13,29 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from .config import EXCLUDED_COLUMNS, FATALITIES_COLUMN, PREFERRED_FEATURES, TARGET_COLUMN
 
+DATE_DERIVED_COLUMNS = ["anio_siniestro", "mes_siniestro"]
+HOUR_DERIVED_COLUMNS = ["hora_siniestro_numerica", "periodo_dia"]
+DERIVED_FEATURES = DATE_DERIVED_COLUMNS + HOUR_DERIVED_COLUMNS
+KNOWN_NUMERIC_FEATURES = {
+    "CANTIDAD DE LESIONADOS",
+    "CANTIDAD DE VEHICULOS DAÑADOS",
+    "anio_siniestro",
+    "mes_siniestro",
+    "hora_siniestro_numerica",
+}
+
+MANDATORY_EXCLUDED_COLUMNS = {
+    "FECHA SINIESTRO",
+    "HORA SINIESTRO",
+    "CÓDIGO SINIESTRO",
+    "CODIGO SINIESTRO",
+    FATALITIES_COLUMN,
+    TARGET_COLUMN,
+    "COORDENADAS LATITUD",
+    "COORDENADAS  LONGITUD",
+    "COORDENADAS LONGITUD",
+}
+
 
 def normalize_column_name(name: object) -> str:
     """Normaliza nombres: mayúsculas, espacios únicos y sin saltos de línea."""
@@ -77,7 +100,7 @@ def period_from_hour(hour: object) -> str:
 
 
 def create_target_and_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Crea nivel_riesgo y variables derivadas sin filtrar columnas predictoras."""
+    """Crea NIVEL_RIESGO y variables derivadas de fecha/hora sin usarlas directo."""
     out = clean_column_names(df)
     fatalities_col = find_column(out, [FATALITIES_COLUMN, "FALLECIDOS", "CANT FALLECIDOS"])
     if fatalities_col is None:
@@ -94,21 +117,24 @@ def create_target_and_features(df: pd.DataFrame) -> pd.DataFrame:
     date_col = find_column(out, "FECHA SINIESTRO")
     if date_col:
         dates = pd.to_datetime(out[date_col], errors="coerce", dayfirst=True)
-        out["ANIO_SINIESTRO"] = dates.dt.year
-        out["MES_SINIESTRO"] = dates.dt.month
+        out["anio_siniestro"] = dates.dt.year
+        out["mes_siniestro"] = dates.dt.month
 
     hour_col = find_column(out, "HORA SINIESTRO")
     if hour_col:
-        out["HORA_SINIESTRO_NUMERICA"] = out[hour_col].apply(parse_hour)
-        out["PERIODO_DIA"] = out["HORA_SINIESTRO_NUMERICA"].apply(period_from_hour)
+        out["hora_siniestro_numerica"] = out[hour_col].apply(parse_hour)
+        out["periodo_dia"] = out["hora_siniestro_numerica"].apply(period_from_hour)
     return out
+
+
+def excluded_feature_keys() -> set[str]:
+    return {flexible_key(c) for c in EXCLUDED_COLUMNS.union(MANDATORY_EXCLUDED_COLUMNS)}
 
 
 def select_feature_columns(df: pd.DataFrame, max_null_ratio: float = 0.70) -> list[str]:
     preferred = [find_column(df, col) for col in PREFERRED_FEATURES]
-    derived = ["ANIO_SINIESTRO", "MES_SINIESTRO", "HORA_SINIESTRO_NUMERICA", "PERIODO_DIA"]
-    columns = [c for c in preferred + derived if c and c in df.columns]
-    excluded_keys = {flexible_key(c) for c in EXCLUDED_COLUMNS}
+    columns = [c for c in preferred + DERIVED_FEATURES if c and c in df.columns]
+    excluded_keys = excluded_feature_keys()
     clean = []
     for col in dict.fromkeys(columns):
         if flexible_key(col) in excluded_keys:
@@ -120,9 +146,33 @@ def select_feature_columns(df: pd.DataFrame, max_null_ratio: float = 0.70) -> li
     return clean
 
 
+def split_feature_types(X: pd.DataFrame) -> tuple[list[str], list[str]]:
+    numeric_columns = X.select_dtypes(include=["number", "bool"]).columns.tolist()
+    categorical_columns = [c for c in X.columns if c not in numeric_columns]
+    return numeric_columns, categorical_columns
+
+
+def sanitize_features(X: pd.DataFrame) -> pd.DataFrame:
+    """Evita datetime/mixtas en OneHotEncoder y fuerza tipos seguros para entrenar."""
+    X = X.copy()
+    datetime_cols = X.select_dtypes(include=["datetime", "datetimetz"]).columns.tolist()
+    X = X.drop(columns=datetime_cols, errors="ignore")
+
+    known_numeric_keys = {flexible_key(col) for col in KNOWN_NUMERIC_FEATURES}
+    for col in X.columns:
+        if flexible_key(col) in known_numeric_keys:
+            X[col] = pd.to_numeric(X[col], errors="coerce")
+
+    numeric_columns, categorical_columns = split_feature_types(X)
+    for col in categorical_columns:
+        X[col] = X[col].fillna("No especificado").astype(str)
+    for col in numeric_columns:
+        X[col] = pd.to_numeric(X[col], errors="coerce")
+    return X
+
+
 def build_preprocessor(X: pd.DataFrame, scale_numeric: bool = True) -> ColumnTransformer:
-    numeric_features = X.select_dtypes(include=["number", "bool"]).columns.tolist()
-    categorical_features = [c for c in X.columns if c not in numeric_features]
+    numeric_features, categorical_features = split_feature_types(X)
     numeric_steps = [("imputer", SimpleImputer(strategy="median"))]
     if scale_numeric:
         numeric_steps.append(("scaler", StandardScaler()))
@@ -139,6 +189,7 @@ def build_preprocessor(X: pd.DataFrame, scale_numeric: bool = True) -> ColumnTra
 def prepare_model_data(df: pd.DataFrame):
     processed = create_target_and_features(df)
     feature_columns = select_feature_columns(processed)
-    X = processed[feature_columns].copy()
+    X = sanitize_features(processed[feature_columns])
     y = processed[TARGET_COLUMN].copy()
+    feature_columns = X.columns.tolist()
     return X, y, processed, feature_columns
