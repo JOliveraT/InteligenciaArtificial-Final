@@ -29,7 +29,7 @@ def bar_count(df, column, title, top=15):
         return
     counts = df[column].fillna("No especificado").value_counts().head(top).reset_index()
     counts.columns = [column, "cantidad"]
-    st.plotly_chart(px.bar(counts, x=column, y="cantidad", title=title), use_container_width=True)
+    st.plotly_chart(px.bar(counts, x=column, y="cantidad", title=title), width="stretch")
 
 
 st.title("🚦 Clasificación del nivel de riesgo en siniestros de tránsito fatales en el Perú")
@@ -69,11 +69,11 @@ with tab_intro:
 
 with tab_eda:
     st.subheader("Vista previa de datos procesados")
-    st.dataframe(df.head(50), use_container_width=True)
+    st.dataframe(df.head(50), width="stretch")
     st.subheader("Distribución del nivel de riesgo")
     risk_counts = df[TARGET_COLUMN].value_counts().reset_index()
     risk_counts.columns = ["nivel_riesgo", "cantidad"]
-    st.plotly_chart(px.pie(risk_counts, names="nivel_riesgo", values="cantidad", title="Distribución de nivel_riesgo"), use_container_width=True)
+    st.plotly_chart(px.pie(risk_counts, names="nivel_riesgo", values="cantidad", title="Distribución de nivel_riesgo"), width="stretch")
     col_a, col_b = st.columns(2)
     with col_a:
         bar_count(df, "DEPARTAMENTO", "Siniestros por departamento")
@@ -82,7 +82,7 @@ with tab_eda:
         bar_count(df, "CLASE SINIESTRO", "Siniestros por clase de siniestro")
         bar_count(df, "ZONA", "Siniestros por zona")
     st.subheader("Estadísticas generales")
-    st.dataframe(df.describe(include="all").transpose(), use_container_width=True)
+    st.dataframe(df.describe(include="all").transpose(), width="stretch")
 
 with tab_exp:
     st.subheader("Resultados de experimentos")
@@ -91,15 +91,15 @@ with tab_exp:
         st.warning("Aún no existen resultados. Ejecute primero: `python src/train_models.py`")
     else:
         metrics = pd.concat([pd.read_csv(path) for path in metric_files], ignore_index=True)
-        st.dataframe(metrics, use_container_width=True)
+        st.dataframe(metrics, width="stretch")
         metric = st.selectbox("Métrica para comparar", ["accuracy", "precision_macro", "recall_macro", "f1_macro", "f1_weighted"], index=3)
-        st.plotly_chart(px.bar(metrics, x="modelo", y=metric, color="experimento", barmode="group", title=f"Comparación por {metric}"), use_container_width=True)
+        st.plotly_chart(px.bar(metrics, x="modelo", y=metric, color="experimento", barmode="group", title=f"Comparación por {metric}"), width="stretch")
         best = metrics.sort_values(["f1_macro", "f1_weighted"], ascending=False).iloc[0]
         st.success(f"Mejor resultado observado: {best['modelo']} con F1 macro = {best['f1_macro']:.3f}.")
     matrix_path = REPORTS_DIR / "matriz_confusion_mejor_modelo.csv"
     if matrix_path.exists():
         matrix = pd.read_csv(matrix_path, index_col=0)
-        st.plotly_chart(px.imshow(matrix, text_auto=True, title="Matriz de confusión del mejor modelo"), use_container_width=True)
+        st.plotly_chart(px.imshow(matrix, text_auto=True, title="Matriz de confusión del mejor modelo"), width="stretch")
 
 with tab_pred:
     st.subheader("Formulario de predicción")
@@ -126,5 +126,5 @@ with tab_pred:
         st.success(f"Resultado: Riesgo {prediction}")
         if probabilities:
             prob_df = pd.DataFrame({"nivel_riesgo": probabilities.keys(), "probabilidad": probabilities.values()})
-            st.plotly_chart(px.bar(prob_df, x="nivel_riesgo", y="probabilidad", title="Probabilidades estimadas"), use_container_width=True)
+            st.plotly_chart(px.bar(prob_df, x="nivel_riesgo", y="probabilidad", title="Probabilidades estimadas"), width="stretch")
         st.info("Interpretación: el resultado resume el patrón aprendido en registros históricos; no reemplaza análisis pericial ni políticas públicas de seguridad vial.")
