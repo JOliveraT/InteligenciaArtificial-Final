@@ -16,7 +16,7 @@ if __package__ is None or __package__ == "":
 from src.config import BEST_MODEL_PATH, MODEL_METADATA_PATH, RANDOM_STATE, REPORTS_DIR, TEST_SIZE
 from src.data_loader import load_dataset
 from src.evaluate_models import evaluate_classifier, metrics_table, save_best_model_reports, save_metrics
-from src.preprocessing import build_preprocessor, prepare_model_data
+from src.preprocessing import build_preprocessor, prepare_model_data, split_feature_types
 
 
 def safe_train_test_split(X, y):
@@ -44,6 +44,13 @@ def train_and_evaluate(X_train, X_test, y_train, y_test, specs, experiment_name)
 def main():
     raw = load_dataset()
     X, y, processed, feature_columns = prepare_model_data(raw)
+    numeric_columns, categorical_columns = split_feature_types(X)
+    print(f"Cantidad de filas: {len(X)}")
+    print(f"Cantidad de columnas predictoras: {len(feature_columns)}")
+    print("Distribución de NIVEL_RIESGO:")
+    print(y.value_counts().to_string())
+    print(f"Columnas categóricas: {categorical_columns}")
+    print(f"Columnas numéricas: {numeric_columns}")
     X_train, X_test, y_train, y_test = safe_train_test_split(X, y)
 
     exp1_specs = [
