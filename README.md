@@ -7,7 +7,7 @@ Aplicación web para la clasificación del nivel de riesgo en siniestros de trá
 - Jorge Olivera Ticona
 - Olger Quispe Vilca
 - Juan Alexis Quispe Luque
-- 
+- Angela Milagros Quispe Huanca
 
 ## 3. Problema
 Los siniestros de tránsito fatales representan un problema importante de seguridad vial en el Perú. Este proyecto busca clasificar el nivel de riesgo de un siniestro fatal según sus características registradas, para apoyar el análisis exploratorio y la toma de decisiones basada en datos.
