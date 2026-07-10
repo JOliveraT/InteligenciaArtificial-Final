@@ -32,6 +32,33 @@ def bar_count(df, column, title, top=15):
     st.plotly_chart(px.bar(counts, x=column, y="cantidad", title=title), width="stretch")
 
 
+def get_text_options(df, column, limit=200):
+    """Devuelve opciones de texto limpias para un selectbox con fallback seguro."""
+    if column not in df.columns:
+        return ["No especificado"]
+    options = sorted(df[column].fillna("No especificado").astype(str).unique().tolist())
+    return options[:limit] or ["No especificado"]
+
+
+def get_filtered_text_options(df, column, filters, fallback_df=None, limit=200):
+    """Filtra opciones por columnas relacionadas y usa todos los valores como fallback."""
+    if column not in df.columns:
+        return ["No especificado"]
+
+    filtered = df.copy()
+    for filter_column, selected_value in filters.items():
+        if filter_column not in filtered.columns or selected_value is None:
+            continue
+        filtered = filtered[
+            filtered[filter_column].fillna("No especificado").astype(str) == str(selected_value)
+        ]
+
+    if filtered.empty:
+        filtered = fallback_df if fallback_df is not None else df
+
+    return get_text_options(filtered, column, limit=limit)
+
+
 st.title("🚦 Clasificación del nivel de riesgo en siniestros de tránsito fatales en el Perú")
 st.caption("Proyecto Final de Inteligencia Artificial · Ingeniería de Software · Universidad La Salle")
 
@@ -109,16 +136,54 @@ with tab_pred:
     model = get_model()
     metadata = load_metadata()
     user_input = {}
+
+    prediction_features = metadata.get("feature_columns", feature_columns)
+    has_location_fields = all(
+        feature in prediction_features and feature in X.columns
+        for feature in ["DEPARTAMENTO", "PROVINCIA", "DISTRITO"]
+    )
+
+    if has_location_fields:
+        st.markdown("**Ubicación del siniestro**")
+        location_cols = st.columns(3)
+        with location_cols[0]:
+            department_options = get_text_options(X, "DEPARTAMENTO")
+            user_input["DEPARTAMENTO"] = st.selectbox("DEPARTAMENTO", department_options)
+        with location_cols[1]:
+            province_options = get_filtered_text_options(
+                X,
+                "PROVINCIA",
+                {"DEPARTAMENTO": user_input["DEPARTAMENTO"]},
+                fallback_df=X,
+            )
+            user_input["PROVINCIA"] = st.selectbox("PROVINCIA", province_options)
+        with location_cols[2]:
+            district_options = get_filtered_text_options(
+                X,
+                "DISTRITO",
+                {
+                    "DEPARTAMENTO": user_input["DEPARTAMENTO"],
+                    "PROVINCIA": user_input["PROVINCIA"],
+                },
+                fallback_df=X,
+            )
+            user_input["DISTRITO"] = st.selectbox("DISTRITO", district_options)
+
     with st.form("prediction_form"):
         cols = st.columns(2)
-        for i, feature in enumerate(metadata.get("feature_columns", feature_columns)):
+        form_features = [
+            feature
+            for feature in prediction_features
+            if not (has_location_fields and feature in ["DEPARTAMENTO", "PROVINCIA", "DISTRITO"])
+        ]
+        for i, feature in enumerate(form_features):
             series = X[feature] if feature in X.columns else pd.Series(dtype=object)
             with cols[i % 2]:
                 if pd.api.types.is_numeric_dtype(series):
                     default = float(series.median()) if not series.dropna().empty else 0.0
                     user_input[feature] = st.number_input(feature, value=default)
                 else:
-                    options = sorted(series.fillna("No especificado").astype(str).unique().tolist())[:200]
+                    options = get_text_options(X, feature) if feature in X.columns else ["No especificado"]
                     user_input[feature] = st.selectbox(feature, options or ["No especificado"])
         submitted = st.form_submit_button("Predecir nivel de riesgo")
     if submitted:
