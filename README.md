@@ -4,10 +4,10 @@
 Aplicación web para la clasificación del nivel de riesgo en siniestros de tránsito fatales en el Perú mediante Machine Learning.
 
 ## 2. Integrantes
-- a
-- b
-- c
-- d
+- Jorge Olivera Ticona
+- Olger Quispe Vilca
+- 
+- 
 
 ## 3. Problema
 Los siniestros de tránsito fatales representan un problema importante de seguridad vial en el Perú. Este proyecto busca clasificar el nivel de riesgo de un siniestro fatal según sus características registradas, para apoyar el análisis exploratorio y la toma de decisiones basada en datos.
