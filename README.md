@@ -4,9 +4,10 @@
 Aplicación web para la clasificación del nivel de riesgo en siniestros de tránsito fatales en el Perú mediante Machine Learning.
 
 ## 2. Integrantes
-- Integrante 1: ______________________________
-- Integrante 2: ______________________________
-- Integrante 3: ______________________________
+- a
+- b
+- c
+- d
 
 ## 3. Problema
 Los siniestros de tránsito fatales representan un problema importante de seguridad vial en el Perú. Este proyecto busca clasificar el nivel de riesgo de un siniestro fatal según sus características registradas, para apoyar el análisis exploratorio y la toma de decisiones basada en datos.
@@ -21,7 +22,7 @@ Desarrollar una aplicación web funcional que use Machine Learning para clasific
 - Hoja usada: SINIESTROS.
 - Periodo: 2021-2025 preliminar.
 - Archivo esperado: `data/BBDD ONSV - SINIESTROS FATALES 2021-2025 (preliminar).xlsx`.
-- Fecha de obtención: ______________________________.
+- Fecha de obtención: 09/07/2026 15:51.
 - Licencia: debe verificarse en el portal de datos abiertos del ONSV.
 
 > Si el archivo Excel aún no está en el repositorio, colóquelo manualmente en la ruta exacta indicada antes de entrenar o ejecutar la aplicación.
