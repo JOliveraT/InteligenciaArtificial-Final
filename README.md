@@ -6,7 +6,7 @@ Aplicación web para la clasificación del nivel de riesgo en siniestros de trá
 ## 2. Integrantes
 - Jorge Olivera Ticona
 - Olger Quispe Vilca
-- 
+- Juan Alexis Quispe Luque
 - 
 
 ## 3. Problema
