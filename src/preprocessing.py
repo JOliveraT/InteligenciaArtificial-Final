@@ -88,8 +88,8 @@ def create_target_and_features(df: pd.DataFrame) -> pd.DataFrame:
     out = out[out[fatalities_col] >= 1].copy()
 
     conditions = [out[fatalities_col].eq(1), out[fatalities_col].eq(2), out[fatalities_col].ge(3)]
-    out[TARGET_COLUMN] = np.select(conditions, ["Bajo", "Medio", "Alto"], default=np.nan)
-    out = out.dropna(subset=[TARGET_COLUMN]).copy()
+    out[TARGET_COLUMN] = np.select(conditions, ["Bajo", "Medio", "Alto"], default="No definido")
+    out = out[out[TARGET_COLUMN] != "No definido"].copy()
 
     date_col = find_column(out, "FECHA SINIESTRO")
     if date_col:
